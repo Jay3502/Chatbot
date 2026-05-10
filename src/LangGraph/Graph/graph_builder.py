@@ -4,6 +4,7 @@ from src.LangGraph.Nodes.basic_chatbot_node import BasicChatbotNode
 from src.LangGraph.Tools.search_tool import get_tools, create_tool_nodes
 from langgraph.prebuilt import ToolNode, tools_condition
 from src.LangGraph.Nodes.chatbot_with_tool_node import ChatbotWithToolNode
+from src.LangGraph.Memory.sqlite_memory import get_memory
 
 class GraphBuilder:
     def __init__(self, model):
@@ -40,4 +41,5 @@ class GraphBuilder:
         else:
             raise ValueError(f"Unsupported use case: {usecase}")
 
-        return self.graph_builder.compile()
+        memory = get_memory()
+        return self.graph_builder.compile(checkpointer=memory)

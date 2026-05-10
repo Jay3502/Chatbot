@@ -7,3 +7,4 @@ langchain-groq
 faiss-cpu
 streamlit
 tavily-python
+langgraph-checkpoint-sqlite
