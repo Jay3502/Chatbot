@@ -35,7 +35,7 @@ class GraphBuilder:
     def setup_graph(self, usecase):
         if usecase == "Basic Chatbot":
             self.basic_chatbot_build_graph()
-        if usecase == "Web Chatbot":
+        elif usecase == "Web Chatbot":
             self.chatbot_with_tools_build_graph()
         else:
             raise ValueError(f"Unsupported use case: {usecase}")
