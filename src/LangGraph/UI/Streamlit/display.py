@@ -96,8 +96,10 @@ class Display:
         ]
 
         config = {
-            "configurable": {
-                "thread_id": thread_id
+            "configurable": {"thread_id": thread_id},
+            "metadata": {
+                "chat_name": selected_chat,
+                "usecase": usecase
             }
         }
 
