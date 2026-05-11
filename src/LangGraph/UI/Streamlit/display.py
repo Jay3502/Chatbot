@@ -1,6 +1,7 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 import json, uuid
+from src.LangGraph.Memory.sqlite_memory import load_chats, save_chat
 
 class Display:
     def __init__(self, usecase, graph, user_message):
@@ -17,16 +18,25 @@ class Display:
         # Session Initialization
         # =========================
 
-        if "chats" not in st.session_state:
+        # Use per-usecase keys so each usecase has its own
+        # independent chat list and selected chat in session state.
+        chats_key = f"chats_{usecase}"
+        selected_key = f"selected_chat_{usecase}"
 
-            first_thread = str(uuid.uuid4())
+        if chats_key not in st.session_state:
+            # Load persisted chats for this usecase from DB
+            persisted = load_chats(usecase)
+            if persisted:
+                st.session_state[chats_key] = persisted
+            else:
+                first_thread = str(uuid.uuid4())
+                st.session_state[chats_key] = {"Chat 1": first_thread}
+                save_chat("Chat 1", first_thread, usecase)
 
-            st.session_state.chats = {
-                "Chat 1": first_thread
-            }
-
-        if "selected_chat" not in st.session_state:
-            st.session_state.selected_chat = "Chat 1"
+        if selected_key not in st.session_state:
+            st.session_state[selected_key] = next(
+                iter(st.session_state[chats_key])
+            )
 
         # =========================
         # Sidebar
@@ -38,49 +48,50 @@ class Display:
         if st.sidebar.button("New Chat"):
 
             new_chat_name = (
-                f"Chat {len(st.session_state.chats)+1}"
+                f"Chat {len(st.session_state[chats_key])+1}"
             )
 
             new_thread_id = str(uuid.uuid4())
 
-            st.session_state.chats[
+            st.session_state[chats_key][
                 new_chat_name
             ] = new_thread_id
 
-            # update selected chat
-            st.session_state.selected_chat = (
-                new_chat_name
-            )
+            # Persist to DB under this usecase
+            save_chat(new_chat_name, new_thread_id, usecase)
+
+            # Update both the selection state and the radio widget
+            # state directly - otherwise Streamlit ignores the index
+            # parameter on rerun and the radio stays on the old chat.
+            st.session_state[selected_key] = new_chat_name
+            st.session_state[f"chat_radio_{usecase}"] = new_chat_name
 
         # Chat list
         chat_list = list(
-            st.session_state.chats.keys()
+            st.session_state[chats_key].keys()
         )
 
-        # determine selected index
-        selected_index = chat_list.index(
-            st.session_state.selected_chat
-        )
+        # Value is managed entirely via session state (no index=) to avoid
+        # Streamlit's 'default value + session state' conflict warning.
+        # Initialise the radio's own key from selected_key if not yet set.
+        radio_key = f"chat_radio_{usecase}"
+        if radio_key not in st.session_state:
+            st.session_state[radio_key] = st.session_state[selected_key]
 
-        # IMPORTANT:
-        # use unique key + selected index
         selected_chat = st.sidebar.radio(
             "Select Chat",
             options=chat_list,
-            index=selected_index,
-            key=f"chat_radio_{selected_index}"
+            key=radio_key
         )
 
         # persist selection
-        st.session_state.selected_chat = (
-            selected_chat
-        )
+        st.session_state[selected_key] = selected_chat
 
         # =========================
         # Config
         # =========================
 
-        thread_id = st.session_state.chats[
+        thread_id = st.session_state[chats_key][
             selected_chat
         ]
 
@@ -94,16 +105,12 @@ class Display:
         # Load Old Messages
         # =========================
 
-        state = graph.get_state(config)
-
         old_messages = []
 
-        if state.values:
-
-            old_messages = state.values.get(
-                "messages",
-                []
-            )
+        if graph is not None:
+            state = graph.get_state(config)
+            if state.values:
+                old_messages = state.values.get("messages", [])
 
         # =========================
         # Display Old Messages
@@ -150,6 +157,7 @@ class Display:
         if (
             usecase == "Basic Chatbot"
             and user_message
+            and graph is not None
         ):
 
             for event in graph.stream(
@@ -194,6 +202,7 @@ class Display:
         elif (
             usecase == "Web Chatbot"
             and user_message
+            and graph is not None
         ):
 
             initial_state = {

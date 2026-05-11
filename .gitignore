@@ -6,3 +6,17 @@ chatbot_memory.db
 *.db
 *.db-shm
 *.db-wal
+
+# VS Code
+.vscode/
+
+# Python
+*.pyc
+*.pyo
+dist/
+build/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db

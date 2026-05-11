@@ -8,10 +8,14 @@ class GroqLLM:
 
     def get_llm_model(self):
         try:
-            groq_api_key = self.user_controls_input["GROQ_API_KEY"]
-            selected_groq_model = self.user_controls_input["selected_model"]
-            if groq_api_key == '' and os.getenv("GROQ_API_KEY") == '':
-                st.error("Please enter your Groq API Key.")
+            groq_api_key = self.user_controls_input.get("GROQ_API_KEY", "").strip()
+            selected_groq_model = self.user_controls_input.get("selected_model", "")
+
+            if not groq_api_key:
+                groq_api_key = os.getenv("GROQ_API_KEY", "")
+
+            if not groq_api_key:
+                st.warning("Please enter your Groq API Key.")
                 return None
 
             llm=ChatGroq(api_key=groq_api_key, model=selected_groq_model)
